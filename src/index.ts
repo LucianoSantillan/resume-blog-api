@@ -1,21 +1,30 @@
 import express from 'express';
 import cors from 'cors';
 import "reflect-metadata";
-import { DataSource, createConnection } from "typeorm";
+import { DataSource } from "typeorm";
 import { Article } from './entity/article';
 import dotenv from 'dotenv';
+import * as yup from 'yup';
 
 dotenv.config();
 
-//TEST ENVIRONMENT VARIABLES BEFORE USING THEM
+const envSchema = yup.object().shape({
+  DB_HOST: yup.string().required(),
+  DB_PORT: yup.number().integer().required(),
+  DB_USERNAME: yup.string().required(),
+  DB_PASSWORD: yup.string().required(),
+  DB_DATABASE: yup.string().required(),
+});
+
+const { DB_PORT, DB_HOST, DB_USERNAME, DB_PASSWORD, DB_DATABASE } = envSchema.validateSync(process.env);
 
 const AppDataSource = new DataSource({
   "type": "mysql",
-  "host": process.env.DB_HOST,
-  "port": parseInt(process.env.DB_PORT || "0"),
-  "username": "root",
-  "password": process.env.DB_PASSWORD,
-  "database": "blog",
+  "host": DB_HOST,
+  "port": DB_PORT,
+  "username": DB_USERNAME,
+  "password": DB_PASSWORD,
+  "database": DB_DATABASE,
   "synchronize": true,
   "logging": false,
   "entities": [
