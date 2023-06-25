@@ -6,6 +6,11 @@ import { Article } from './entity/article';
 import dotenv from 'dotenv';
 import * as yup from 'yup';
 
+const app = express();
+
+app.use(express.json());
+app.use(cors());
+
 dotenv.config();
 
 const envSchema = yup.object().shape({
@@ -34,8 +39,6 @@ const AppDataSource = new DataSource({
 
 AppDataSource.initialize()
   .then((dataSource) => {
-    const app = express();
-    app.use(cors());
 
     const port = 3001;
 
@@ -54,6 +57,14 @@ AppDataSource.initialize()
       const articleRepository = dataSource.getRepository(Article);
       const articles = await articleRepository.find();
       res.json(articles);
+    });
+
+    app.post('/articles', async (req, res) => {
+      const articleRepository = dataSource.getRepository(Article);
+      const { title, description } = req.body;
+      const article = articleRepository.create({ title, description });
+      await articleRepository.save(article);
+      res.json(article);
     });
 
     app.listen(port, () => {
