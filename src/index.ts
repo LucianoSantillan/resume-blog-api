@@ -59,8 +59,24 @@ AppDataSource.initialize()
       res.json(articles);
     });
 
+    const articleSchema = yup.object().shape({
+      title: yup.string().required(),
+      description: yup.string().required(),
+    });
+
     app.post('/articles', async (req, res) => {
       const articleRepository = dataSource.getRepository(Article);
+      try {
+        articleSchema.validateSync(req.body);
+      } catch (error) {
+        if (error instanceof yup.ValidationError) {
+          res.status(400).json({ errors: error.errors });
+        } else {
+          console.error(error);
+          res.status(500)
+        }
+        return;
+      }
       const { title, description } = req.body;
       const article = articleRepository.create({ title, description });
       await articleRepository.save(article);
