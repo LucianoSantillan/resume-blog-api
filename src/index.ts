@@ -1,10 +1,14 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import cors from 'cors';
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 import { Article } from './entity/article';
 import dotenv from 'dotenv';
 import * as yup from 'yup';
+import { User } from './entity/user';
+import jwt from 'jsonwebtoken';
+import { authenticate } from './middlewares/authenticate';
+
 
 const app = express();
 
@@ -49,13 +53,21 @@ AppDataSource.initialize()
     app.get('/articles/:id', async (req, res) => {
       const articleRepository = dataSource.getRepository(Article);
       const article = await articleRepository.findOne({ where: { id: parseInt(req.params.id) } });
-      console.log(article)
       res.json(article);
     });
 
-    app.get('/articles', async (req, res) => {
+    app.get('/articles', async (req: Request, res: Response) => {
+      let { page, pageSize } = req.query;
+      let _page = Number(page) || 1;
+      let _pageSize = Number(pageSize) || 100; // default pageSize to 100 if not provided
+
       const articleRepository = dataSource.getRepository(Article);
-      const articles = await articleRepository.find();
+
+      const articles = await articleRepository.find({
+        skip: (_page - 1) * _pageSize,
+        take: _pageSize
+      });
+
       res.json(articles);
     });
 
@@ -64,7 +76,7 @@ AppDataSource.initialize()
       description: yup.string().required(),
     });
 
-    app.post('/articles', async (req, res) => {
+    app.post('/articles', authenticate, async (req, res) => {
       const articleRepository = dataSource.getRepository(Article);
       try {
         articleSchema.validateSync(req.body);
@@ -81,6 +93,18 @@ AppDataSource.initialize()
       const article = articleRepository.create({ title, description });
       await articleRepository.save(article);
       res.json(article);
+    });
+
+    app.post('/login', async (req, res) => {
+      const userRepository = dataSource.getRepository(User);
+      const { username, password } = req.body;
+      const user = await userRepository.findOne({ where: { username } });
+      if ((!user) || (password !== user.password)) {
+        res.status(401).json({ error: 'Invalid username or password' });
+        return;
+      }
+      const token = jwt.sign({ userId: user.id }, 'secret');
+      res.json({ token });
     });
 
     app.listen(port, () => {
